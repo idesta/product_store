@@ -6,9 +6,11 @@ import {
   VStack,
   Box,
   Button,
+  useToast,
 } from "@chakra-ui/react";
 import React from "react";
 import { useState } from "react";
+import { useProductStore } from "../store/product";
 
 const CreatePage = () => {
   const [newProduct, setNewProduct] = useState({
@@ -17,9 +19,31 @@ const CreatePage = () => {
     image: "",
   });
 
-  const handleAddProduct = () => {
-    // Logic to handle adding the new product
-    console.log(newProduct);
+  const toast = useToast();
+
+  const { createProduct } = useProductStore();
+
+  // Logic to handle adding the new product
+  const handleAddProduct = async () => {
+    const { success, message } = await createProduct(newProduct);
+    // console.log("Success", success);
+    // console.log("Message", message);
+    if (!success) {
+      toast({
+        title: "Error",
+        description: message,
+        status: "error",
+        isClosable: true,
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: message,
+        status: "success",
+        isClosable: true,
+      });
+    }
+    setNewProduct({ name: "", price: "", image: "" });
   };
 
   return (
