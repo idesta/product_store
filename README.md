@@ -22,4 +22,21 @@
           - `docker rm prd_str_cicd_demo`
         - Run by passing the `.env` manually
           - ``docker run -d --name prd_str_cicd_demo --env-file .env -p 5000:5000 prd_str_cicd
--
+- Check on your browser
+
+  - Instance_Public_IP:5000
+  - Test the functionality
+
+- On your local repo
+
+  - `mkdir -p .github/workflows` or simply create `.github` folder and inside of it create `workflows` directory.
+  - Create and put `ci_cd.yml` file on the .github/workflows directory
+
+- Put the instance username (ubuntu) on the docker group
+
+  - Be the super user (root) `sudo su`
+  - `usermod -aG docker ubuntu`
+  - Exit from the root and try to list the docker images
+    - If not works disconnect and reconnect again
+
+- Remove the container from the Instance, Make an update and push to github and see the details
