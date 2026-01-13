@@ -39,5 +39,5 @@
   - Exit from the root and try to list the docker images
     - If not works disconnect and reconnect again
 
-- Make sure the secrets are correct and update something new
+- Make sure the secrets are correct and update something new and the docker hub token should have read and write permission
 - Remove the container from the Instance, Make an update and push to github and see the details
