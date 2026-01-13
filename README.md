@@ -1,6 +1,25 @@
-#### React
-#### Javascript
-#### Node
-#### Express
-#### MongoDB (Atlas)
-#### CRUD Ops
+#### React, Javascript, Node, Express, MongoDB (Atlas), CRUD Ops, Docker, CICD (Github Actions)
+
+#### Simple Deployment Steps
+
+- Launch an instance
+- Install Docker and Git on it
+  - `curl https://get.docker.com | bash`
+- git clone https://github.com/idesta/product_store.git
+- cd product_store/
+- `ls` -> to check the docker file existed on it
+- `docker build -t prd_str_cicd .`
+- `docker images`
+  - to list the build image
+- `docker run -d --name prd_str_cicd_demo -p 5000:5000 prd_str_cicd`
+  - to list the running containers
+    - `docker ps` or `docker ps -a`
+    - If there is no up containers folloe the next steps
+      - Inside the product_store folder
+        - `touch .env`
+        - Copy and paste the `mongo url` and `port` from the local repo
+        - Remove the running container if exists
+          - `docker rm prd_str_cicd_demo`
+        - Run by passing the `.env` manually
+          - ``docker run -d --name prd_str_cicd_demo --env-file .env -p 5000:5000 prd_str_cicd
+-
