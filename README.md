@@ -1,4 +1,6 @@
-#### React, Javascript, Node, Express, MongoDB (Atlas), CRUD Ops, Docker, CICD (Github Actions)
+#### AWS EC2, Docker, CICD (Github Actions), React, Javascript, Node, Express, MongoDB (Atlas), CRUD Ops
+
+- https://www.youtube.com/watch?v=WwxSNIrW8bk
 
 #### Simple Deployment Steps
 
