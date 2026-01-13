@@ -1,20 +1,28 @@
-# Use official Node image
-FROM node:latest
+# ---------- FRONTEND BUILD ----------
+FROM node:18-alpine AS frontend
+WORKDIR /frontend
 
-# Set working directory
-
-WORKDIR /app
-
-# Copy files
-COPY package*.json ./
-
+COPY frontend/package*.json ./
 RUN npm install
 
-COPY . .
+COPY frontend .
+RUN npm run build
 
-# EXPOSE 5000
+
+# ---------- APP ----------
+FROM node:18-alpine
+WORKDIR /app
+
+# copy root package.json (backend depends on this)
+COPY package*.json ./
+RUN npm install --production
+
+# copy backend source
+COPY backend ./backend
+
+# copy frontend build output
+COPY --from=frontend /frontend/dist ./frontend/dist
+
 EXPOSE 5000
-
-# Run app
 
 CMD ["npm", "start"]
