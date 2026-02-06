@@ -1,0 +1,22 @@
+- name: Initialize Kubernetes Cluster
+  hosts: k8s
+  become: true
+  tasks:
+    - name: Initialize cluster
+      command: kubeadm init --pod-network-cidr=10.244.0.0/16
+      args:
+        creates: /etc/kubernetes/admin.conf
+
+    - name: Create kube config directory
+      become_user: ubuntu
+      file:
+        path: /home/ubuntu/.kube
+        state: directory
+        mode: "0755"
+
+    - name: Copy kubeconfig
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /home/ubuntu/.kube/config
+        remote_src: yes
+        owner: ubuntu
