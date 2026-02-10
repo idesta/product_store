@@ -18,7 +18,7 @@ jobs:
       # ---------- Build Backend ----------
       - name: Build Backend Docker image
         run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/product_store_backend:latest -f backend/Dockerfile .
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/product_store_backend:latest -f Dockerfile.backend .
 
       - name: Push Backend Docker image
         run: |
@@ -27,7 +27,7 @@ jobs:
       # ---------- Build Frontend ----------
       - name: Build Frontend Docker image
         run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/product_store_frontend:latest -f frontend/Dockerfile .
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/product_store_frontend:latest -f Dockerfile.frontend .
 
       - name: Push Frontend Docker image
         run: |
