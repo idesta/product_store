@@ -11,10 +11,13 @@ RUN npm install --production
 COPY backend ./backend
  
 # Copy frontend source and build it
-COPY frontend ./frontend
-WORKDIR /frontend
+COPY frontend ./frontend-src
+WORKDIR /app/frontend-src
 RUN npm install
 RUN npm run build
+
+# Switch back to app directory for final image preparation
+WORKDIR /app
 
 # ---------- FINAL IMAGE ----------
 FROM node:18-alpine
@@ -29,7 +32,7 @@ RUN npm install --production --only=production
 COPY backend ./backend
 
 # Copy built frontend to backend for serving in production
-COPY --from=build /frontend/dist ./frontend/dist
+COPY --from=build /app/frontend-src/dist ./frontend/dist
 
 EXPOSE 5000
 
