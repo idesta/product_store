@@ -1,6 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import path from "path";
+import cors from "cors";
 import { connectDB } from "./config/db.js";
 // import Product from "./models/product.model.js";
 // import { mongo } from "mongoose";
@@ -10,6 +11,14 @@ import productRoutes from "./routes/product.route.js";
 dotenv.config();
 
 const app = express();
+
+// Enable CORS for all routes
+app.use(
+  cors({
+    origin:
+      process.env.NODE_ENV === "production" ? "*" : "http://localhost:5173", // Allow your frontend origin
+  }),
+);
 
 const PORT = process.env.PORT || 5000;
 
