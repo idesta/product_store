@@ -4,11 +4,11 @@ FROM node:18-alpine AS build
 WORKDIR /app
 
 # Copy frontend package.json & install dependencies
-COPY frontend/package*.json ./
+COPY ../frontend/package*.json ./
 RUN npm install
 
 # Copy frontend source and build
-COPY frontend .
+COPY ../frontend .
 RUN npm run build
 
 # ---------- NGINX SERVE ----------
