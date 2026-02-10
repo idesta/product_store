@@ -55,7 +55,7 @@ const HomePage = () => {
                 color="blue.500"
                 _hover={{ textDecoration: "underline" }}
               >
-                Create a product
+                Create product
               </Text>
             </Link>
           </Text>
