@@ -1,0 +1,84 @@
+---
+- name: Initialize Kubernetes control plane
+  hosts: k8s
+  become: true
+
+  vars:
+    kubernetes_version: "1.29.15"
+
+  tasks:
+    ######################################################################
+    # Kubernetes packages
+    ######################################################################
+    - name: Add Kubernetes signing key
+      shell: |
+        curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key |
+        gpg --dearmor -o /usr/share/keyrings/kubernetes-apt-keyring.gpg
+      args:
+        creates: /usr/share/keyrings/kubernetes-apt-keyring.gpg
+
+    - name: Update system
+      apt:
+        update_cache: yes
+        upgrade: yes
+
+    - name: Add Kubernetes repository
+      apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /"
+        state: present
+
+    - name: Install Kubernetes components
+      apt:
+        update_cache: yes
+        name:
+          - kubelet={{ kubernetes_version }}-*
+          - kubeadm={{ kubernetes_version }}-*
+          - kubectl={{ kubernetes_version }}-*
+        state: present
+
+    - name: Hold Kubernetes packages
+      command: apt-mark hold kubelet kubeadm kubectl
+
+    ######################################################################
+    # kubelet CRI config
+    ######################################################################
+    - name: Ensure kubelet drop-in directory exists
+      file:
+        path: /etc/systemd/system/kubelet.service.d
+        state: directory
+
+    - name: Configure kubelet to use containerd
+      copy:
+        dest: /etc/systemd/system/kubelet.service.d/20-containerd.conf
+        content: |
+          [Service]
+          Environment="KUBELET_EXTRA_ARGS=--container-runtime-endpoint=unix:///run/containerd/containerd.sock"
+
+    - name: Reload systemd and restart kubelet
+      systemd:
+        daemon_reload: yes
+        name: kubelet
+        state: restarted
+        enabled: yes
+
+    ######################################################################
+    # kubeadm init
+    ######################################################################
+    - name: Initialize cluster
+      command: kubeadm init --pod-network-cidr=10.244.0.0/16
+      args:
+        creates: /etc/kubernetes/admin.conf
+
+    - name: Create kube config directory
+      become_user: ubuntu
+      file:
+        path: /home/ubuntu/.kube
+        state: directory
+        mode: "0755"
+
+    - name: Copy kubeconfig
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /home/ubuntu/.kube/config
+        remote_src: yes
+        owner: ubuntu

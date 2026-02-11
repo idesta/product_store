@@ -1,0 +1,11 @@
+---
+- name: Install Flannel CNI
+  hosts: k8s
+  become: true
+
+  tasks:
+    - name: Apply Flannel network
+      become_user: ubuntu
+      command: kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml
+      args:
+        creates: /etc/cni/net.d/10-flannel.conflist
