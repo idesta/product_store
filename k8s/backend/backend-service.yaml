@@ -3,10 +3,16 @@ kind: Service
 metadata:
   name: backend-service
   namespace: mern-app
+  labels:
+    project: product-store
+    tier: mern-stack
 spec:
   type: ClusterIP
   selector:
     app: backend
+    project: product-store
+    tier: mern-stack
   ports:
-    - port: 5000
+    - protocol: TCP
+      port: 80
       targetPort: 5000

@@ -4,20 +4,30 @@ metadata:
   name: mern-ingress
   namespace: mern-app
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
+    # We remove the rewrite-target to keep the "/api" prefix
+    # so your Backend code receives the full path.
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/session-cookie-name: "route"
 spec:
   ingressClassName: nginx
   rules:
-    - host: product-store.local
-      http:
+    # If you don't have a real domain yet, you can comment
+    # out 'host' to use the AWS LoadBalancer/Node IP directly.
+    - http:
         paths:
+          # 1. API Traffic
           - path: /api
             pathType: Prefix
             backend:
               service:
                 name: backend-service
                 port:
-                  number: 5000
+                  number: 80 # Matches the Service port we set earlier
+
+          # 2. Frontend Traffic
           - path: /
             pathType: Prefix
             backend:

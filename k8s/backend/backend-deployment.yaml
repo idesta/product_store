@@ -3,24 +3,47 @@ kind: Deployment
 metadata:
   name: backend
   namespace: mern-app
+  labels: # Added labels here for Kustomize consistency
+    project: product-store
+    tier: mern-stack
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: backend
+      project: product-store
+      tier: mern-stack
   template:
     metadata:
       labels:
         app: backend
+        project: product-store # Added to match Service Selector
+        tier: mern-stack # Added to match Service Selector
     spec:
       containers:
         - name: backend
           image: israeldesta/product_store_backend:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 5000
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
           env:
             - name: MONGO_URI
               valueFrom:
                 secretKeyRef:
                   name: mongo-secret
                   key: MONGO_URI
+          # I commented out the health check.
+          # Enable it ONLY if you have app.get('/api/health') in your code!
+          # livenessProbe:
+          #   httpGet:
+          #     path: /api/health
+          #     port: 5000
+          #   initialDelaySeconds: 15
+          #   periodSeconds: 20

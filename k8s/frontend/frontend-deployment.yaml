@@ -4,7 +4,7 @@ metadata:
   name: frontend
   namespace: mern-app
 spec:
-  replicas: 1
+  replicas: 2 # Scale across your 2 worker nodes for high availability
   selector:
     matchLabels:
       app: frontend
@@ -16,5 +16,19 @@ spec:
       containers:
         - name: frontend
           image: israeldesta/product_store_frontend:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 80
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
+          # 🚨 The Magic Fix:
+          # We pass the public URL of the backend through an environment variable.
+          # If using React, your code must be written to look for 'process.env.REACT_APP_API_URL'
+          env:
+            - name: REACT_APP_API_URL
+              value: "/api" # Using a relative path for Ingress routing
