@@ -69,3 +69,19 @@
 │ ├── terraform.tfvars # Your secret values (NEW)
 │ └── provider.tf # AWS Connection
 └── product-node-ci-cd-2.pem # Your SSH key
+
+k8s arch
+k8s/
+├── namespaces/
+│ └── app-namespace.yaml # Defines 'production' namespace
+├── secrets/
+│ └── atlas-secret.yaml # Encrypted Atlas Connection String
+├── backend/
+│ ├── deployment.yaml # Backend logic (2 replicas)
+│ └── service.yaml # Internal ClusterIP service
+├── frontend/
+│ ├── deployment.yaml # Frontend logic (2 replicas)
+│ └── service.yaml # Internal ClusterIP service
+├── ingress/
+│ └── app-ingress.yaml # External access (Nginx Ingress)
+└── kustomization.yaml # The "Glue" that links everything
