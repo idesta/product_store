@@ -1,11 +1,12 @@
 ---
 - name: Install Flannel CNI
-  hosts: k8s
+  hosts: masters # Changed from k8s to masters
   become: true
 
   tasks:
     - name: Apply Flannel network
       become_user: ubuntu
       command: kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml
+      # This check prevents running it twice if the file already exists
       args:
         creates: /etc/cni/net.d/10-flannel.conflist

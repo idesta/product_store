@@ -1,47 +1,20 @@
 ---
-- name: Base system setup (containerd runtime)
+- name: Prepare All Nodes
   hosts: k8s
   become: true
-
   tasks:
-    ######################################################################
-    # System prep
-    ######################################################################
-    - name: Update system
+    - name: Update and install dependencies
       apt:
-        update_cache: yes
-        upgrade: yes
+        {
+          name: [curl, apt-transport-https, ca-certificates, gnupg],
+          state: present,
+          update_cache: yes,
+        }
 
-    - name: Install basic packages
-      apt:
-        name:
-          - curl
-          - apt-transport-https
-          - ca-certificates
-          - gnupg
-          - lsb-release
-        state: present
+    - name: Disable Swap
+      shell: "swapoff -a && sed -i '/ swap / s/^/#/' /etc/fstab"
 
-    ######################################################################
-    # Disable swap (mandatory)
-    ######################################################################
-    - name: Disable swap
-      shell: |
-        swapoff -a
-        sed -i '/ swap / s/^/#/' /etc/fstab
-
-    ######################################################################
-    # Kernel modules
-    ######################################################################
-    - name: Ensure kernel modules config
-      copy:
-        dest: /etc/modules-load.d/k8s.conf
-        mode: "0644"
-        content: |
-          overlay
-          br_netfilter
-
-    - name: Load kernel modules now
+    - name: Load Kernel Modules immediately
       modprobe:
         name: "{{ item }}"
         state: present
@@ -49,69 +22,45 @@
         - overlay
         - br_netfilter
 
-    ######################################################################
-    # Sysctl
-    ######################################################################
-    - name: Configure sysctl for Kubernetes
+    - name: Ensure modules load on boot
       copy:
-        dest: /etc/sysctl.d/99-kubernetes.conf
-        mode: "0644"
+        dest: /etc/modules-load.d/k8s.conf
+        content: |
+          overlay
+          br_netfilter
+
+    - name: Apply Sysctl params (Bridge Networking)
+      sysctl:
+        name: "{{ item.key }}"
+        value: "{{ item.value }}"
+        state: present
+        sysctl_file: /etc/sysctl.d/k8s.conf
+        reload: yes
+      with_items:
+        - { key: "net.bridge.bridge-nf-call-iptables", value: "1" }
+        - { key: "net.bridge.bridge-nf-call-ip6tables", value: "1" }
+        - { key: "net.ipv4.ip_forward", value: "1" }
+
+    - name: Apply Sysctl
+      copy:
+        dest: /etc/sysctl.d/k8s.conf
         content: |
           net.bridge.bridge-nf-call-iptables  = 1
-          net.bridge.bridge-nf-call-ip6tables = 1
           net.ipv4.ip_forward                 = 1
+      notify: Reload Sysctl
 
-    - name: Apply sysctl params
+    - name: Install Containerd
+      apt: { name: containerd, state: present }
+
+    - name: Configure Containerd (SystemdCgroup)
+      shell: |
+        mkdir -p /etc/containerd
+        containerd config default | tee /etc/containerd/config.toml > /dev/null
+        sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
+      notify: Restart Containerd
+
+  handlers:
+    - name: Reload Sysctl
       command: sysctl --system
-
-    ######################################################################
-    # containerd
-    ######################################################################
-    - name: Install containerd
-      apt:
-        name: containerd
-        state: present
-
-    - name: Create containerd config directory
-      file:
-        path: /etc/containerd
-        state: directory
-
-    - name: Generate containerd default config
-      command: containerd config default
-      register: containerd_cfg
-      changed_when: false
-
-    - name: Write containerd config
-      copy:
-        dest: /etc/containerd/config.toml
-        content: "{{ containerd_cfg.stdout }}"
-
-    - name: Enable SystemdCgroup
-      replace:
-        path: /etc/containerd/config.toml
-        regexp: "SystemdCgroup = false"
-        replace: "SystemdCgroup = true"
-
-    - name: Restart containerd
-      systemd:
-        name: containerd
-        state: restarted
-        enabled: yes
-
-    ######################################################################
-    # kubelet CRI FIX
-    ######################################################################
-    - name: Ensure kubelet systemd override directory exists
-      file:
-        path: /etc/systemd/system/kubelet.service.d
-        state: directory
-        mode: "0755"
-
-    - name: Configure kubelet to use containerd
-      copy:
-        dest: /etc/systemd/system/kubelet.service.d/20-containerd.conf
-        mode: "0644"
-        content: |
-          [Service]
-          Environment="KUBELET_EXTRA_ARGS=--container-runtime-endpoint=unix:///run/containerd/containerd.sock"
+    - name: Restart Containerd
+      systemd: { name: containerd, state: restarted }
