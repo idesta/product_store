@@ -3,18 +3,23 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
-variable "instance_type" {
+# We split this into two to give the Master more power
+variable "master_instance_type" {
+  default = "t3.medium"
+}
+
+variable "worker_instance_type" {
   default = "t3.small"
 }
 
 variable "key_name" {
-  description = "product-node-ci-cd-2"
+  description = "Name of the SSH key pair"
+  # No default here, we use terraform.tfvars for the value
 }
 
 variable "allowed_ssh_ip" {
-  description = "0.0.0.0/0"
+  description = "IP allowed to SSH into nodes"
 }
-
 
 variable "ubuntu_ami_id" {
   description = "Ubuntu 24.04 AMI ID"
