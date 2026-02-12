@@ -32,3 +32,5 @@ terraform/*.tfstate.backup
 terraform/.terraform.lock.hcl
 
 product-node-ci-cd-2.pem
+
+README_how_to.md
