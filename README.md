@@ -1,9 +1,9 @@
-# React, Nodejs, MongoDB
+### React, Nodejs, MongoDB
 
-# Github Actions (CICD)
+### Github Actions (CICD)
 
-# Kubernetes (k8s), Docker
+### Kubernetes (k8s), Docker
 
-# Terraform, Ansible
+### Terraform, Ansible
 
-# AWS (IAM, EC2)
+### AWS (IAM, EC2)
