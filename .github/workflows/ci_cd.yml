@@ -29,7 +29,8 @@ jobs:
       - name: Build/Push Backend
         uses: docker/build-push-action@v5
         with:
-          context: ./backend
+          context: . # Use the root context
+          file: ./Dockerfile.backend # Point to the specific filename
           push: true
           tags: |
             ${{ secrets.DOCKER_USERNAME }}/product_store_backend:latest
@@ -39,7 +40,8 @@ jobs:
       - name: Build/Push Frontend
         uses: docker/build-push-action@v5
         with:
-          context: ./frontend
+          context: . # Use the root context
+          file: ./Dockerfile.frontend # Point to the specific filename
           push: true
           tags: |
             ${{ secrets.DOCKER_USERNAME }}/product_store_frontend:latest
