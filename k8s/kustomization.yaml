@@ -1,7 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# 1. First, create the environment (Namespace)
+# 1. Resources (The structure of your app)
 resources:
   - namespaces/app-namespace.yaml
   - secrets/mongo-secret.yaml
@@ -11,11 +11,23 @@ resources:
   - frontend/frontend-service.yaml
   - ingress/app-ingress.yaml
 
-# 2. Common Metadata (Adds these to EVERY resource above)
+# 2. Common Metadata
+# This is great—it ensures everything is tagged for easy searching
 commonLabels:
   project: product-store
   tier: mern-stack
 
-# 3. Namespace Override (Safety net)
-# This ensures every resource is forced into your mern-app namespace
+# 3. Namespace Enforcement
 namespace: mern-app
+
+# 4. Image Transformer (CRITICAL for GitOps)
+# This is where GitHub Actions will 'edit' the tags.
+# Kustomize will find these image names in your deployments
+# and swap 'latest' for the specific Git SHA.
+images:
+  - name: israeldesta/product_store_backend
+    newName: israeldesta/product_store_backend
+    newTag: latest
+  - name: israeldesta/product_store_frontend
+    newName: israeldesta/product_store_frontend
+    newTag: latest
