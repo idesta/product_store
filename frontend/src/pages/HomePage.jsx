@@ -24,7 +24,7 @@ const HomePage = () => {
           bgclip={"text"}
           textAlign={"center"}
         >
-          Current and Previous Products 2026 🚀
+          Current Products 2026 🚀
         </Text>
 
         <SimpleGrid
