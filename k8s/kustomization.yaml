@@ -3,13 +3,13 @@ kind: Kustomization
 
 # 1. Resources (The structure of your app)
 resources:
-  - namespaces/app-namespace.yaml
-  - secrets/mongo-secret.yaml
-  - backend/backend-deployment.yaml
-  - backend/backend-service.yaml
-  - frontend/frontend-deployment.yaml
-  - frontend/frontend-service.yaml
-  - ingress/app-ingress.yaml
+- namespaces/app-namespace.yaml
+- secrets/mongo-secret.yaml
+- backend/backend-deployment.yaml
+- backend/backend-service.yaml
+- frontend/frontend-deployment.yaml
+- frontend/frontend-service.yaml
+- ingress/app-ingress.yaml
 
 # 2. Common Metadata
 # This is great—it ensures everything is tagged for easy searching
@@ -25,9 +25,7 @@ namespace: mern-app
 # Kustomize will find these image names in your deployments
 # and swap 'latest' for the specific Git SHA.
 images:
-  - name: israeldesta/product_store_backend
-    newName: israeldesta/product_store_backend
-    newTag: latest
-  - name: israeldesta/product_store_frontend
-    newName: israeldesta/product_store_frontend
-    newTag: latest
+- name: israeldesta/product_store_backend
+  newTag: 39fe154
+- name: israeldesta/product_store_frontend
+  newTag: 39fe154
