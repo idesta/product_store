@@ -1,13 +1,14 @@
-# 1. Acquire a Public IP address for the cluster
-resource "cloudstack_ipaddress" "k8s_public_ip" {
-  zone       = var.cs_zone
-  network_id = var.cs_network_id
+# 1. Look up the existing IP instead of creating a new one
+data "cloudstack_ipaddress" "k8s_public_ip" {
+  filter {
+    name  = "ipaddress"
+    value = "196.188.250.157"
+  }
 }
 
-# 2. FIREWALL: Open the "Hole" in the Virtual Router
-# This allows traffic to reach your Public IP
+# 2. Update the Firewall to use the Data Source ID
 resource "cloudstack_firewall" "k8s_fw" {
-  ip_address_id = cloudstack_ipaddress.k8s_public_ip.id
+  ip_address_id = data.cloudstack_ipaddress.k8s_public_ip.id
 
   rule {
     cidr_list = [var.allowed_ssh_ip]
@@ -22,10 +23,9 @@ resource "cloudstack_firewall" "k8s_fw" {
   }
 }
 
-# 3. PORT FORWARDING: Direct traffic from the Public IP to the Master VM
-# We map public 6443 to Master 6443 so 'kubectl' works
+# 3. Update Port Forwarding to use the Data Source ID
 resource "cloudstack_port_forward" "master_pf" {
-  ip_address_id = cloudstack_ipaddress.k8s_public_ip.id
+  ip_address_id = data.cloudstack_ipaddress.k8s_public_ip.id
 
   forward {
     protocol           = "tcp"
@@ -50,5 +50,73 @@ resource "cloudstack_egress_firewall" "allow_internet" {
   rule {
     cidr_list = ["0.0.0.0/0"]
     protocol  = "all"
+  }
+}
+
+# 1. Declare the Security Group that main.tf is looking for
+############################################
+# Security Group
+############################################
+
+resource "cloudstack_security_group" "k8s_sg" {
+  name        = "k8s-cluster-sg"
+  description = "Security group for internal K8s cluster communication"
+}
+
+############################################
+# INTERNAL TCP
+############################################
+
+resource "cloudstack_security_group_rule" "internal_tcp" {
+  security_group_id = cloudstack_security_group.k8s_sg.id
+
+  rule {
+    protocol = "tcp"
+
+    ports = [
+      "1-65535"
+    ]
+
+    user_security_group_list = [
+      cloudstack_security_group.k8s_sg.name
+    ]
+  }
+}
+
+############################################
+# INTERNAL UDP
+############################################
+
+resource "cloudstack_security_group_rule" "internal_udp" {
+  security_group_id = cloudstack_security_group.k8s_sg.id
+
+  rule {
+    protocol = "udp"
+
+    ports = [
+      "1-65535"
+    ]
+
+    user_security_group_list = [
+      cloudstack_security_group.k8s_sg.name
+    ]
+  }
+}
+
+############################################
+# INTERNAL ICMP
+############################################
+
+resource "cloudstack_security_group_rule" "internal_icmp" {
+  security_group_id = cloudstack_security_group.k8s_sg.id
+
+  rule {
+    protocol  = "icmp"
+    icmp_type = -1
+    icmp_code = -1
+
+    user_security_group_list = [
+      cloudstack_security_group.k8s_sg.name
+    ]
   }
 }

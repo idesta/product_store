@@ -2,7 +2,7 @@
 # These replace the aws_region concept
 
 variable "cloudstack_api_url" {
-  description = "The CloudStack API endpoint" 
+  description = "The CloudStack API endpoint"
 }
 
 variable "cloudstack_api_key" {
@@ -48,7 +48,8 @@ variable "cloudstack_template" {
 # --- Access Control ---
 
 variable "key_name" {
-  description = "Name of the SSH key pair already uploaded to CloudStack" 
+  description = "Name of the SSH key pair already uploaded to CloudStack"
+  default     = "cloudstack_keypair"
 }
 
 variable "allowed_ssh_ip" {

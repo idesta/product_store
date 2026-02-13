@@ -7,6 +7,7 @@ terraform {
     cloudstack = {
       source  = "cloudstack/cloudstack"
       version = "0.6.0" # Current stable version in 2026
+      
     }
 
     # 3. Kept the Local provider for managing files
