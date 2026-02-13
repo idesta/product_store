@@ -5,29 +5,49 @@
   tasks:
     - name: Add K8s Repo & Install Tools
       shell: |
-        curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-        echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /" > /etc/apt/sources.list.d/kubernetes.list
+        mkdir -p /etc/apt/keyrings
+        curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+        echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /" > /etc/apt/sources.list.d/kubernetes.list
+      args:
+        creates: /etc/apt/sources.list.d/kubernetes.list
 
-    - apt:
-        { name: [kubelet, kubeadm, kubectl], state: present, update_cache: yes }
+    - name: Install K8s binaries
+      apt:
+        name: [kubelet, kubeadm, kubectl]
+        state: present
+        update_cache: yes
 
     - name: Kubeadm Init
-      command: kubeadm init --pod-network-cidr=10.244.0.0/16
-      args: { creates: /etc/kubernetes/admin.conf }
+      # We use ansible_default_ipv4.address to ensure it binds to the internal CloudStack IP
+      command: >
+        kubeadm init 
+        --pod-network-cidr=10.244.0.0/16 
+        --apiserver-advertise-address={{ ansible_default_ipv4.address }}
+      args:
+        creates: /etc/kubernetes/admin.conf
+
+    - name: Setup Kubeconfig for Ubuntu user
+      become_user: ubuntu
+      file:
+        path: ~/.kube
+        state: directory
+        mode: "0755"
+
+    - name: Copy admin.conf to user home
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /home/ubuntu/.kube/config
+        remote_src: yes
+        owner: ubuntu
+        group: ubuntu
+        mode: "0600"
 
     - name: Generate Join Token
       command: kubeadm token create --print-join-command
       register: join_command
 
-    - name: Share Join Token
-      set_fact:
-        k8s_join_cmd: "{{ join_command.stdout }}"
-      delegate_to: "{{ item }}"
-      with_items: "{{ groups['workers'] }}"
-
-    - name: Setup Kubeconfig
-      become_user: ubuntu
-      shell: |
-        mkdir -p $HOME/.kube
-        sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-        sudo chown $(id -u):$(id -g) $HOME/.kube/config
+    - name: Share Join Token with Workers
+      # This 'dummy' host trick is the most reliable way to pass facts between different host groups
+      add_host:
+        name: "K8S_TOKEN_HOLDER"
+        token: "{{ join_command.stdout }}"

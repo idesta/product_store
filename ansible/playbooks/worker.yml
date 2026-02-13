@@ -3,7 +3,7 @@
   hosts: workers
   become: true
   tasks:
-    # --- 1. ADD THE REPO (Just like the Master) ---
+    # --- 1. REPO SETUP (Updated to v1.31) ---
     - name: Create keyrings directory
       file:
         path: /etc/apt/keyrings
@@ -12,7 +12,7 @@
 
     - name: Download Kubernetes GPG key
       get_url:
-        url: https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key
+        url: https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key
         dest: /tmp/kubernetes-release.key
         mode: "0644"
 
@@ -23,12 +23,12 @@
 
     - name: Add Kubernetes repository
       apt_repository:
-        repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /"
+        repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /"
         state: present
         filename: kubernetes
         update_cache: yes
 
-    # --- 2. NOW INSTALL THE TOOLS ---
+    # --- 2. INSTALL TOOLS ---
     - name: Install K8s Tools
       apt:
         name: [kubelet, kubeadm]
@@ -36,6 +36,8 @@
 
     # --- 3. JOIN THE CLUSTER ---
     - name: Join Cluster
-      shell: "{{ hostvars['master']['k8s_join_cmd'] }}"
+      # This pulls the token from the virtual 'K8S_TOKEN_HOLDER' host
+      # we created in the master.yml
+      command: "{{ hostvars['K8S_TOKEN_HOLDER']['token'] }}"
       args:
         creates: /etc/kubernetes/kubelet.conf

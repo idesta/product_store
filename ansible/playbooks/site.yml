@@ -1,5 +1,6 @@
+# ../ansible/playbooks/site.yml
 ---
-- import_playbook: base.yml # Runs on all
-- import_playbook: master.yml # Master only
-- import_playbook: worker.yml # Workers only
-- import_playbook: cni.yml # Master only
+- import_playbook: base.yml # OS Prep (Swap, Containerd, Python)
+- import_playbook: master.yml # Init Master & Create Join Token
+- import_playbook: cni.yml # Install Flannel Networking
+- import_playbook: worker.yml # Install Tools & Join Workers

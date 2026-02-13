@@ -1,12 +1,33 @@
 ---
 - name: Install Flannel CNI
-  hosts: masters # Changed from k8s to masters
+  hosts: masters
   become: true
 
   tasks:
+    - name: Ensure Flannel manifest is present locally
+      get_url:
+        url: https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml
+        dest: /tmp/kube-flannel.yml
+        mode: "0644"
+
+    - name: Configure Flannel to use the correct interface
+      # CloudStack VMs usually use eth0. This prevents Flannel from
+      # accidentally picking up the wrong IP on boot.
+      replace:
+        path: /tmp/kube-flannel.yml
+        regexp: "(?m)- --kube-subnet-mgr$"
+        replace: "- --kube-subnet-mgr\n        - --iface=eth0"
+
     - name: Apply Flannel network
       become_user: ubuntu
-      command: kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml
-      # This check prevents running it twice if the file already exists
+      command: kubectl apply -f /tmp/kube-flannel.yml
       args:
         creates: /etc/cni/net.d/10-flannel.conflist
+
+    - name: Wait for Flannel pods to be ready
+      become_user: ubuntu
+      shell: "kubectl get pods -n kube-flannel -l app=flannel | grep Running"
+      register: flannel_status
+      until: flannel_status.rc == 0
+      retries: 10
+      delay: 15

@@ -2,19 +2,27 @@
 - name: Prepare All Nodes
   hosts: k8s
   become: true
+  gather_facts: false # Must be false for the very first step if Python is missing
+
+  pre_tasks:
+    - name: Bootstrap Python3 for Ansible
+      raw: apt-get update && apt-get install -y python3
+      changed_when: false
+
+    - name: Gather facts after Python is confirmed
+      setup: # Manually trigger fact gathering now that Python exists
+
   tasks:
     - name: Update and install dependencies
       apt:
-        {
-          name: [curl, apt-transport-https, ca-certificates, gnupg],
-          state: present,
-          update_cache: yes,
-        }
+        name: [curl, apt-transport-https, ca-certificates, gnupg, git]
+        state: present
+        update_cache: yes
 
     - name: Disable Swap
       shell: "swapoff -a && sed -i '/ swap / s/^/#/' /etc/fstab"
 
-    - name: Load Kernel Modules immediately
+    - name: Load Kernel Modules
       modprobe:
         name: "{{ item }}"
         state: present
@@ -31,26 +39,20 @@
 
     - name: Apply Sysctl params (Bridge Networking)
       sysctl:
-        name: "{{ item.key }}"
-        value: "{{ item.value }}"
+        name: "{{ item }}"
+        value: "1"
         state: present
         sysctl_file: /etc/sysctl.d/k8s.conf
         reload: yes
-      with_items:
-        - { key: "net.bridge.bridge-nf-call-iptables", value: "1" }
-        - { key: "net.bridge.bridge-nf-call-ip6tables", value: "1" }
-        - { key: "net.ipv4.ip_forward", value: "1" }
-
-    - name: Apply Sysctl
-      copy:
-        dest: /etc/sysctl.d/k8s.conf
-        content: |
-          net.bridge.bridge-nf-call-iptables  = 1
-          net.ipv4.ip_forward                 = 1
-      notify: Reload Sysctl
+      loop:
+        - net.bridge.bridge-nf-call-iptables
+        - net.bridge.bridge-nf-call-ip6tables
+        - net.ipv4.ip_forward
 
     - name: Install Containerd
-      apt: { name: containerd, state: present }
+      apt:
+        name: containerd
+        state: present
 
     - name: Configure Containerd (SystemdCgroup)
       shell: |
@@ -60,7 +62,7 @@
       notify: Restart Containerd
 
   handlers:
-    - name: Reload Sysctl
-      command: sysctl --system
     - name: Restart Containerd
-      systemd: { name: containerd, state: restarted }
+      systemd:
+        name: containerd
+        state: restarted
