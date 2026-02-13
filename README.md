@@ -6,4 +6,4 @@
 
 ### Terraform, Ansible
 
-### AWS (IAM, EC2)
+### Zergaw CLoudStack (IAM, Instances)
