@@ -74,3 +74,18 @@
   - cmk list zones
   - cmk list virtualmachines
   - cmk list publicipaddresses
+
+# Terraform
+
+```plaintext
+.
+├── provider.tf        # CloudStack provider & version locking
+├── variables.tf       # Your 1C2G, 2C4G, and API keys
+├── terraform.tfvars   # (Keep out of Git!) Your actual secret keys
+├── network.tf         # Firewall, Port Forwarding, and Egress rules
+├── main.tf            # Master (1) and Worker (2) instances
+├── outputs.tf         # Shows your Master Public IP
+└── scripts/           # Bootstrap scripts for Kubernetes
+    ├── master-init.sh
+    └── worker-init.sh
+```
