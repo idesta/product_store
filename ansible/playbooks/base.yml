@@ -1,65 +1,100 @@
 ---
-- name: Prepare All Nodes
+- name: Prepare Kubernetes Nodes (Master & Workers)
   hosts: k8s
   become: true
-  gather_facts: false # Must be false for the very first step if Python is missing
-
-  pre_tasks:
-    - name: Bootstrap Python3 for Ansible
-      raw: apt-get update && apt-get install -y python3
-      changed_when: false
-
-    - name: Gather facts after Python is confirmed
-      setup: # Manually trigger fact gathering now that Python exists
+  gather_facts: true
 
   tasks:
-    - name: Update and install dependencies
+    - name: 0. Wait for unattended-upgrades to finish
+      shell: |
+        while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do 
+          echo "Waiting for other apt process..."; 
+          sleep 5; 
+        done
+      timeout: 300
+
+    - name: 1. System Cleanup & Lock Removal
+      shell: |
+        systemctl stop unattended-upgrades || true
+        killall apt apt-get unattended-upgrade-daemon || true
+        rm -f /var/lib/dpkg/lock*
+        rm -f /var/lib/apt/lists/lock*
+        dpkg --configure -a
+      ignore_errors: true
+
+    - name: 2. Install Essential Dependencies
       apt:
-        name: [curl, apt-transport-https, ca-certificates, gnupg, git]
+        name:
+          [
+            curl,
+            apt-transport-https,
+            ca-certificates,
+            gnupg,
+            git,
+            conntrack,
+            socat,
+            python3-pip,
+          ]
         state: present
         update_cache: yes
 
-    - name: Disable Swap
-      shell: "swapoff -a && sed -i '/ swap / s/^/#/' /etc/fstab"
-
-    - name: Load Kernel Modules
-      modprobe:
-        name: "{{ item }}"
-        state: present
-      loop:
-        - overlay
-        - br_netfilter
-
-    - name: Ensure modules load on boot
-      copy:
-        dest: /etc/modules-load.d/k8s.conf
-        content: |
-          overlay
-          br_netfilter
-
-    - name: Apply Sysctl params (Bridge Networking)
-      sysctl:
-        name: "{{ item }}"
-        value: "1"
-        state: present
-        sysctl_file: /etc/sysctl.d/k8s.conf
-        reload: yes
-      loop:
-        - net.bridge.bridge-nf-call-iptables
-        - net.bridge.bridge-nf-call-ip6tables
-        - net.ipv4.ip_forward
-
-    - name: Install Containerd
-      apt:
-        name: containerd
-        state: present
-
-    - name: Configure Containerd (SystemdCgroup)
+    - name: 3. Disable Swap (Required for K8s)
       shell: |
-        mkdir -p /etc/containerd
-        containerd config default | tee /etc/containerd/config.toml > /dev/null
-        sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
-      notify: Restart Containerd
+        swapoff -a
+        sed -i '/ swap / s/^/#/' /etc/fstab
+      when: ansible_swaptotal_mb > 0
+
+    - name: 4. Configure Networking & Kernel Modules
+      block:
+        - name: Load modules immediately
+          modprobe:
+            name: "{{ item }}"
+            state: present
+          loop: [overlay, br_netfilter]
+
+        - name: Persist modules on boot
+          copy:
+            dest: /etc/modules-load.d/k8s.conf
+            content: |
+              overlay
+              br_netfilter
+
+        - name: Apply Sysctl settings
+          sysctl:
+            name: "{{ item }}"
+            value: "1"
+            state: present
+            sysctl_file: /etc/sysctl.d/k8s.conf
+            reload: yes
+          loop:
+            - net.bridge.bridge-nf-call-iptables
+            - net.bridge.bridge-nf-call-ip6tables
+            - net.ipv4.ip_forward
+
+    - name: 5. Security & Firewall
+      ufw:
+        state: disabled
+
+    - name: 6. Containerd Setup
+      block:
+        - name: Install Containerd
+          apt:
+            name: containerd
+            state: present
+
+        - name: Configure Containerd SystemdCgroup
+          shell: |
+            mkdir -p /etc/containerd
+            containerd config default > /etc/containerd/config.toml
+            sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
+          notify: Restart Containerd
+
+    - name: 7. CNI Bridge "Deep Clean" (Fixes CrashLoopBackOff)
+      shell: |
+        ip link set cni0 down || true
+        ip link delete cni0 || true
+        systemctl restart containerd
+      ignore_errors: true
 
   handlers:
     - name: Restart Containerd

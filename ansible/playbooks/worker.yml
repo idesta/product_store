@@ -3,41 +3,60 @@
   hosts: workers
   become: true
   tasks:
-    # --- 1. REPO SETUP (Updated to v1.31) ---
-    - name: Create keyrings directory
-      file:
-        path: /etc/apt/keyrings
-        state: directory
-        mode: "0755"
-
-    - name: Download Kubernetes GPG key
-      get_url:
-        url: https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key
-        dest: /tmp/kubernetes-release.key
-        mode: "0644"
-
-    - name: Dearmor GPG key
-      shell: gpg --dearmor < /tmp/kubernetes-release.key > /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+    # --- 1. REPO SETUP (Identical to Master for consistency) ---
+    - name: Add K8s Repo & Install Tools
+      shell: |
+        mkdir -p /etc/apt/keyrings
+        curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+        echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /" > /etc/apt/sources.list.d/kubernetes.list
       args:
-        creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-
-    - name: Add Kubernetes repository
-      apt_repository:
-        repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /"
-        state: present
-        filename: kubernetes
-        update_cache: yes
+        creates: /etc/apt/sources.list.d/kubernetes.list
 
     # --- 2. INSTALL TOOLS ---
-    - name: Install K8s Tools
+    - name: Install K8s binaries
       apt:
         name: [kubelet, kubeadm]
         state: present
+        update_cache: yes
 
     # --- 3. JOIN THE CLUSTER ---
     - name: Join Cluster
-      # This pulls the token from the virtual 'K8S_TOKEN_HOLDER' host
-      # we created in the master.yml
       command: "{{ hostvars['K8S_TOKEN_HOLDER']['token'] }}"
       args:
         creates: /etc/kubernetes/kubelet.conf
+      register: join_result
+
+    # --- 4. VERIFICATION (The Kube-Proxy Check) ---
+    - name: Verify Kubelet and Kube-Proxy
+      block:
+        - name: Check if kubelet service is running
+          systemd:
+            name: kubelet
+            state: started
+          register: kubelet_status
+
+        #- name: Wait for kube-proxy to initialize
+        # This checks for the kube-proxy binary/process appearing in the local process list
+        #shell: ps -ef | grep kube-proxy | grep -v grep
+        #register: proxy_check
+        #until: proxy_check.rc == 0
+        #retries: 10
+        # delay: 5
+
+        #- name: Confirm worker status
+        #   debug:
+        #      msg: "Worker has successfully joined and Kube-Proxy is running!"
+        #when: join_result.changed or kubelet_status.status.ActiveState == 'active'
+
+        - name: Verify Node Status from Master
+          delegate_to: master
+          shell: "kubectl get nodes --kubeconfig=/etc/kubernetes/admin.conf | grep {{ inventory_hostname }}"
+          register: node_check
+          until: "' Ready' in node_check.stdout"
+          retries: 5
+          delay: 10
+          changed_when: false
+
+        - name: Confirm worker health
+          debug:
+            msg: "Worker {{ inventory_hostname }} is officially READY in the cluster!"
