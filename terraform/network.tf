@@ -9,11 +9,12 @@ data "cloudstack_ipaddress" "k8s_public_ip" {
 # 2. Update the Firewall to use the Data Source ID
 resource "cloudstack_firewall" "k8s_fw" {
   ip_address_id = data.cloudstack_ipaddress.k8s_public_ip.id
+  managed       = true
 
   rule {
     cidr_list = [var.allowed_ssh_ip]
     protocol  = "tcp"
-    ports     = ["22"]
+    ports     = ["2201", "2205", "2206"] # Dedicated SSH ports
   }
 
   rule {
@@ -23,35 +24,49 @@ resource "cloudstack_firewall" "k8s_fw" {
   }
 }
 
-# 3. Update Port Forwarding to use the Data Source ID
-resource "cloudstack_port_forward" "master_pf" {
+# 3. Update Port Forwarding to use the Data Source ID, Port Forwarding: Map Public Ports to Private Port 22
+resource "cloudstack_port_forward" "ssh_forwarding" {
   ip_address_id = data.cloudstack_ipaddress.k8s_public_ip.id
+  managed       = true
+  depends_on = [cloudstack_firewall.k8s_fw]
 
+  # Master Node
   forward {
     protocol           = "tcp"
-    public_port        = 6443
-    private_port       = 6443
+    public_port        = 2201
+    private_port       = 22
     virtual_machine_id = cloudstack_instance.k8s_master.id
   }
 
+  # Worker 0
   forward {
     protocol           = "tcp"
-    public_port        = 22
+    public_port        = 2205
     private_port       = 22
-    virtual_machine_id = cloudstack_instance.k8s_master.id
+    virtual_machine_id = cloudstack_instance.k8s_worker[0].id
+  }
+
+  # Worker 1
+  forward {
+    protocol           = "tcp"
+    public_port        = 2206
+    private_port       = 22
+    virtual_machine_id = cloudstack_instance.k8s_worker[1].id
   }
 }
 
 # 4. EGRESS: Allow your VMs to reach the internet (Updates/Docker)
 # Without this, 'apt-get install' will hang and fail
-resource "cloudstack_egress_firewall" "allow_internet" {
-  network_id = var.cs_network_id
-
-  rule {
-    cidr_list = ["0.0.0.0/0"]
-    protocol  = "all"
-  }
-}
+#resource "cloudstack_egress_firewall" "allow_internet" {
+  #managed = true
+  #network_id = var.cs_network_id
+  #network_id = "5366de98-c84b-452e-a775-ba2665fe2294"
+  
+#rule {
+    #cidr_list = ["0.0.0.0/0"]
+    #protocol  = "all"
+  #}
+#}
 
 # 1. Declare the Security Group that main.tf is looking for
 ############################################
@@ -72,14 +87,8 @@ resource "cloudstack_security_group_rule" "internal_tcp" {
 
   rule {
     protocol = "tcp"
-
-    ports = [
-      "1-65535"
-    ]
-
-    user_security_group_list = [
-      cloudstack_security_group.k8s_sg.name
-    ]
+    ports = ["1-65535"]
+    user_security_group_list = [cloudstack_security_group.k8s_sg.name]
   }
 }
 
@@ -92,14 +101,8 @@ resource "cloudstack_security_group_rule" "internal_udp" {
 
   rule {
     protocol = "udp"
-
-    ports = [
-      "1-65535"
-    ]
-
-    user_security_group_list = [
-      cloudstack_security_group.k8s_sg.name
-    ]
+    ports = ["1-65535"]
+    user_security_group_list = [cloudstack_security_group.k8s_sg.name]
   }
 }
 
@@ -120,3 +123,5 @@ resource "cloudstack_security_group_rule" "internal_icmp" {
     ]
   }
 }
+
+
