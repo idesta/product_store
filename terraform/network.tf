@@ -33,6 +33,14 @@ resource "cloudstack_port_forward" "ssh_forwarding" {
   # Master Node
   forward {
     protocol           = "tcp"
+    public_port        = 6443
+    private_port       = 6443
+    virtual_machine_id = cloudstack_instance.k8s_master.id
+  }
+
+    # Master Node
+  forward {
+    protocol           = "tcp"
     public_port        = 2201
     private_port       = 22
     virtual_machine_id = cloudstack_instance.k8s_master.id
