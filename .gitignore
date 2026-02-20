@@ -32,7 +32,9 @@ terraform/*.tfstate.backup
 terraform/.terraform.lock.hcl
 terraform/.terraform.tfstate.lock.info
 
-product-node-ci-cd-2.pem
+
 cloudstack_keypair
 cloudstack_keypair.pub
+product-node-ci-cd-2.pem
+README_CloudStack.md
 README_how_to.md
