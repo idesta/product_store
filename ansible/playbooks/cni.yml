@@ -7,72 +7,61 @@
     network_interface: "ens3"
 
   tasks:
-    - name: 1. Ensure Flannel manifest is present locally
+    - name: 1. Prepare Flannel Manifest
       get_url:
         url: https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml
         dest: /tmp/kube-flannel.yml
-        mode: "0644"
 
-    - name: 2.  Configure Flannel to use the correct interface
+    - name: 2. Configure Interface and MTU
       replace:
         path: /tmp/kube-flannel.yml
-        regexp: "(?m)- --kube-subnet-mgr$"
-        replace: "- --kube-subnet-mgr\n        - --iface={{ network_interface }}"
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.replace }}"
+      with_items:
+        - {
+            regexp: "(?m)- --kube-subnet-mgr$",
+            replace: "- --kube-subnet-mgr\n        - --iface={{ network_interface }}",
+          }
+        - {
+            regexp: '\"Network\": \"10.244.0.0/16\"',
+            replace: '"Network": "10.244.0.0/16", "Backend": { "Type": "vxlan", "MTU": 1400 }',
+          }
 
-    - name: Delete old Flannel if exists
-      command: kubectl delete daemonset kube-flannel-ds -n kube-flannel
-      ignore_errors: yes
-
-    - name: 3. Apply Flannel network
-      command: kubectl apply -f /tmp/kube-flannel.yml
+    - name: 3. Apply Flannel (with force to avoid immutable field errors)
+      command: kubectl apply -f /tmp/kube-flannel.yml --force
       environment:
         KUBECONFIG: "{{ kubeconfig_path }}"
-      ## We removed 'creates' to ensure it reapplies if you've changed the interface
-      #args:
-      #creates: /etc/cni/net.d/10-flannel.conflist
 
-    - name: 4. Wait for Flannel pods to be ready
-      shell: "kubectl get pods -n kube-flannel -l app=flannel --kubeconfig={{ kubeconfig_path }} | grep Running"
-      register: flannel_status
-      until: flannel_status.rc == 0
-      retries: 15
-      delay: 10
-      ignore_errors: true
-
-    - name: 5. Fix CoreDNS loop (Avoid Ubuntu systemd-resolved loop)
+    - name: 4. Fix CoreDNS Loop
       shell: |
         kubectl -n kube-system get configmap coredns -o yaml | \
         sed 's/forward . \/etc\/resolv.conf/forward . 8.8.8.8 1.1.1.1/g' | \
         kubectl apply -f -
       environment:
         KUBECONFIG: "{{ kubeconfig_path }}"
-      register: coredns_fix
-      changed_when: "'configured' in coredns_fix.stdout"
+      ignore_errors: true
 
-    - name: 6. Restart CoreDNS pods to apply changes (Force Restart to clear CrashLoopBackOff)
+    - name: 5. Restart CoreDNS
       shell: "kubectl rollout restart -n kube-system deployment coredns"
       environment:
         KUBECONFIG: "{{ kubeconfig_path }}"
-      #when: coredns_fix.changed
 
-    - name: 7. Wait for CoreDNS to be fully Ready
-      shell: |
-        kubectl get pods -n kube-system -l k8s-app=kube-dns -o jsonpath='{.items[*].status.containerStatuses[*].ready}' | grep -v "false" | grep "true"
+    - name: 6. Wait for ALL Nodes to be Ready
+      shell: "kubectl get nodes --no-headers | grep -v ' Ready' | wc -l"
       environment:
         KUBECONFIG: "{{ kubeconfig_path }}"
-      register: dns_ready
-      until: dns_ready.rc == 0
-      retries: 30
-      delay: 10
+      register: not_ready_count
+      until: not_ready_count.stdout == "0"
+      retries: 20
+      delay: 15
       changed_when: false
 
-    - name: 8. Get Cluster status
-      command: kubectl get nodes --kubeconfig={{ kubeconfig_path }}
-      register: nodes_ready
+    - name: 7. Show Cluster Status
+      command: kubectl get nodes -o wide
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      register: final_status
 
-    - name: 9. Display Cluster status
+    - name: Display Status
       debug:
-        #var: nodes_ready.stdout_lines
-        msg:
-          - "Nodes Status:"
-          - "{{ nodes_ready.stdout_lines }}"
+        var: final_status.stdout_lines

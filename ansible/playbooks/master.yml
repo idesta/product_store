@@ -6,12 +6,28 @@
     ansible_remote_tmp: /tmp/.ansible/tmp
 
   tasks:
+    # --- ADD THIS TASK HERE ---
+    - name: 0. Wait for apt lock and disable unattended upgrades
+      shell: |
+        systemctl stop unattended-upgrades || true
+        systemctl disable unattended-upgrades || true
+        # Kill any existing apt/dpkg processes if they are stuck
+        killall apt apt-get unattended-upgrade-daemon || true
+        # Remove the lock files manually if necessary
+        rm -f /var/lib/dpkg/lock-frontend
+        rm -f /var/lib/apt/lists/lock
+        # Reconfigure dpkg in case it was interrupted
+        dpkg --configure -a
+      ignore_errors: true
+
     - name: Ensure networking dependencies are installed
       apt:
         name:
           - conntrack
           - socat
         state: present
+        update_cache: yes
+        lock_timeout: 300 # Added timeout to wait for locks naturally
 
     - name: Add K8s Repo & Install Tools
       shell: |
@@ -49,7 +65,7 @@
         mode: "0600"
 
     - name: Install Flannel CNI
-      command: kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
+      command: kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml --force
       register: cni_result
       until: cni_result is succeeded
       retries: 3

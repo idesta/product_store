@@ -3,60 +3,29 @@
   hosts: workers
   become: true
   tasks:
-    # --- 1. REPO SETUP (Identical to Master for consistency) ---
-    - name: Add K8s Repo & Install Tools
+    - name: 1. Add K8s Repo & Install Tools
       shell: |
         mkdir -p /etc/apt/keyrings
-        curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+        curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | gpg --dearmor -y -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
         echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /" > /etc/apt/sources.list.d/kubernetes.list
       args:
         creates: /etc/apt/sources.list.d/kubernetes.list
 
-    # --- 2. INSTALL TOOLS ---
-    - name: Install K8s binaries
+    - name: 2. Install K8s binaries
       apt:
         name: [kubelet, kubeadm]
         state: present
         update_cache: yes
+        lock_timeout: 300
 
-    # --- 3. JOIN THE CLUSTER ---
-    - name: Join Cluster
+    - name: 3. Join Cluster
       command: "{{ hostvars['K8S_TOKEN_HOLDER']['token'] }}"
       args:
         creates: /etc/kubernetes/kubelet.conf
       register: join_result
 
-    # --- 4. VERIFICATION (The Kube-Proxy Check) ---
-    - name: Verify Kubelet and Kube-Proxy
-      block:
-        - name: Check if kubelet service is running
-          systemd:
-            name: kubelet
-            state: started
-          register: kubelet_status
-
-        #- name: Wait for kube-proxy to initialize
-        # This checks for the kube-proxy binary/process appearing in the local process list
-        #shell: ps -ef | grep kube-proxy | grep -v grep
-        #register: proxy_check
-        #until: proxy_check.rc == 0
-        #retries: 10
-        # delay: 5
-
-        #- name: Confirm worker status
-        #   debug:
-        #      msg: "Worker has successfully joined and Kube-Proxy is running!"
-        #when: join_result.changed or kubelet_status.status.ActiveState == 'active'
-
-        - name: Verify Node Status from Master
-          delegate_to: master
-          shell: "kubectl get nodes --kubeconfig=/etc/kubernetes/admin.conf | grep {{ inventory_hostname }}"
-          register: node_check
-          until: "' Ready' in node_check.stdout"
-          retries: 5
-          delay: 10
-          changed_when: false
-
-        - name: Confirm worker health
-          debug:
-            msg: "Worker {{ inventory_hostname }} is officially READY in the cluster!"
+    - name: 4. Ensure Kubelet is started
+      systemd:
+        name: kubelet
+        state: started
+        enabled: yes

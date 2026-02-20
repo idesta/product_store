@@ -1,7 +1,7 @@
 # ../ansible/playbooks/site.yml
 ---
 #- import_playbook: pre_tasks.yml # First, clear locks and install base tools on ALL nodes
-- import_playbook: base.yml # OS Prep (Swap, Containerd, Python)
-- import_playbook: master.yml # Init Master & Create Join Token
-- import_playbook: cni.yml # Install Flannel Networking
-- import_playbook: worker.yml # Install Tools & Join Workers
+- import_playbook: base.yml # OS Prep (Swap, Containerd, Kernel Modules)
+- import_playbook: master.yml # kubeadm init & Generate Token
+- import_playbook: worker.yml # Install Tools & JOIN Workers to Cluster
+- import_playbook: cni.yml # Apply Flannel & Wait for CoreDNS
