@@ -9,7 +9,7 @@ data "cloudstack_ipaddress" "k8s_public_ip" {
 # 2. Update the Firewall to use the Data Source ID
 resource "cloudstack_firewall" "k8s_fw" {
   ip_address_id = data.cloudstack_ipaddress.k8s_public_ip.id
-  managed       = true
+  # managed       = true
 
   rule {
     cidr_list = [var.allowed_ssh_ip]
