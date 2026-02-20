@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - feature/k8s-infra
+      - feature/k8s-cloudstack-infra
 
 jobs:
   build-and-push:
