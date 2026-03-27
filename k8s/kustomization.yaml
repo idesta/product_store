@@ -26,6 +26,6 @@ namespace: mern-app
 # and swap 'latest' for the specific Git SHA.
 images:
 - name: israeldesta/product_store_backend
-  newTag: c82a61b
+  newTag: "54857e9"
 - name: israeldesta/product_store_frontend
-  newTag: c82a61b
+  newTag: "54857e9"
