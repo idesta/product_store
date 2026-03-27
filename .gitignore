@@ -36,6 +36,8 @@ terraform/.terraform.tfstate.lock.info
 cloudstack_keypair
 cloudstack_keypair.pub
 product-node-ci-cd-2.pem
+
+
 # TO Be MERGED IN ONE
-README_CloudStack.md 
+README.md 
 README_how_to.md
