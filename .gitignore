@@ -25,6 +25,9 @@ dist-ssr
 *.sln
 *.sw?
 
+
+
+
 # Terraform related Ignores
 terraform/.terraform/
 terraform/*.tfstate
@@ -32,7 +35,6 @@ terraform/*.tfstate.backup
 terraform/.terraform.lock.hcl
 
 product-node-ci-cd-2.pem
-cloudstack_keypair
-cloudstack_keypair.pub
+
 
 README_how_to.md
