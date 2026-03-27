@@ -1,9 +1,7 @@
-### React, Nodejs, MongoDB
+### Deployment Architecture
 
-### Github Actions (CICD)
+<p align="center">
+  <img src="mern_arch.gif" width="600" title="Project Architecture">
+</p>
 
-### Kubernetes (k8s), Docker
-
-### Terraform, Ansible
-
-### AWS (IAM, EC2)
+### React, Nodejs, MongoDB, Github Actions (CICD), ArgoCD (GitOps) Kubernetes (k8s), Docker, Terraform, Ansible, AWS (IAM, EC2)
